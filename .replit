@@ -1,0 +1,39 @@
+modules = ["nodejs-20", "web"]
+[agent]
+expertMode = true
+
+[nix]
+channel = "stable-25_05"
+
+[workflows]
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Start application"
+
+[[workflows.workflow]]
+name = "Start application"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm run build && npx wrangler pages dev dist --d1=DB --local --ip 0.0.0.0 --port 5000"
+waitForPort = 5000
+
+[workflows.workflow.metadata]
+outputType = "webview"
+
+[[ports]]
+localPort = 5000
+externalPort = 5000
+
+[deployment]
+deploymentTarget = "autoscale"
+run = ["bash", "-c", "npm run build && npx wrangler pages dev dist --d1=DB --local --ip 0.0.0.0 --port 5000"]
+build = ["npm", "run", "build"]
