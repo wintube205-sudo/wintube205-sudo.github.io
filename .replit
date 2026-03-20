@@ -30,7 +30,10 @@ args = """
 printf 'YT_API_KEY=%s
 GOOGLE_CLIENT_ID=%s
 GOOGLE_CLIENT_SECRET=%s
-' \"$GOOGLE_API_KEY\" \"$GOOGLE_CLIENT_ID\" \"$GOOGLE_CLIENT_SECRET\" > .dev.vars && npm run build && SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt npx wrangler pages dev dist --d1=DB --local --ip 0.0.0.0 --port 5000"""
+RESEND_API_KEY=%s
+ADMIN_EMAIL=%s
+ADMIN_SECRET=%s
+' \"$GOOGLE_API_KEY\" \"$GOOGLE_CLIENT_ID\" \"$GOOGLE_CLIENT_SECRET\" \"$RESEND_API_KEY\" \"$ADMIN_EMAIL\" \"$ADMIN_SECRET\" > .dev.vars && npm run build && SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt npx wrangler pages dev dist --d1=DB --local --ip 0.0.0.0 --port 5000"""
 waitForPort = 5000
 
 [[ports]]

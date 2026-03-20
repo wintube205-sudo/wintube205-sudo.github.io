@@ -6,6 +6,9 @@ export type Bindings = {
   ADMIN_UIDS: string;
   GOOGLE_CLIENT_ID: string;
   GOOGLE_CLIENT_SECRET: string;
+  RESEND_API_KEY: string;
+  ADMIN_EMAIL: string;
+  ADMIN_SECRET: string;
 };
 
 export type Variables = {

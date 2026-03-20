@@ -86,6 +86,34 @@ social.post('/withdraw', requireAuth, async (c) => {
   const updated = await db.prepare('SELECT points FROM users WHERE id = ?')
     .bind(user.id).first<{ points: number }>();
 
+  // Send email notification to admin
+  const adminEmail = c.env.ADMIN_EMAIL;
+  const resendKey = c.env.RESEND_API_KEY;
+  if (adminEmail && resendKey) {
+    try {
+      await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${resendKey}` },
+        body: JSON.stringify({
+          from: 'WinTube <onboarding@resend.dev>',
+          to: [adminEmail],
+          subject: `💰 New Withdrawal Request — $${usdValue}`,
+          html: `
+            <h2>New Withdrawal Request</h2>
+            <table style="border-collapse:collapse;width:100%">
+              <tr><td style="padding:8px;border:1px solid #ddd"><b>User</b></td><td style="padding:8px;border:1px solid #ddd">${user.name} (${user.email})</td></tr>
+              <tr><td style="padding:8px;border:1px solid #ddd"><b>Amount</b></td><td style="padding:8px;border:1px solid #ddd">${amount} pts = $${usdValue}</td></tr>
+              <tr><td style="padding:8px;border:1px solid #ddd"><b>Method</b></td><td style="padding:8px;border:1px solid #ddd">${method}</td></tr>
+              <tr><td style="padding:8px;border:1px solid #ddd"><b>Address</b></td><td style="padding:8px;border:1px solid #ddd">${address.trim()}</td></tr>
+              <tr><td style="padding:8px;border:1px solid #ddd"><b>Date</b></td><td style="padding:8px;border:1px solid #ddd">${new Date().toISOString()}</td></tr>
+            </table>
+            <p style="margin-top:16px">Login to your admin panel to approve or reject this request.</p>
+          `,
+        }),
+      });
+    } catch (_) {}
+  }
+
   return c.json({
     success: true,
     withdrawal: { amount, usdValue, method, status: 'pending' },

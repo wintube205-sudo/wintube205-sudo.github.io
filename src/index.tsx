@@ -7,6 +7,8 @@ import authRoutes from './routes/auth';
 import videoRoutes from './routes/videos';
 import pointsRoutes from './routes/points';
 import socialRoutes from './routes/social';
+import adminRoutes from './routes/admin';
+import adminPanelRoute from './routes/adminPanel';
 
 const app = new Hono<HonoEnv>();
 
@@ -23,6 +25,8 @@ app.route('/api/auth', authRoutes);
 app.route('/api/videos', videoRoutes);
 app.route('/api/points', pointsRoutes);
 app.route('/api', socialRoutes);
+app.route('/api/admin', adminRoutes);
+app.route('/admin', adminPanelRoute);
 
 // ═══ API Health Check ═══
 app.get('/api/health', (c) => {
