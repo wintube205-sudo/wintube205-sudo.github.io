@@ -1,6 +1,6 @@
 # WinTube v2.0
 
-A secure "Watch & Earn" platform where users earn points by watching YouTube Shorts and completing offers. Points can be withdrawn as cryptocurrency, bank transfers, or mobile credit.
+A secure "Watch & Earn" platform where users earn points by watching YouTube Shorts and completing offers. Points can be withdrawn as cryptocurrency, bank transfers, or mobile credit. Minimum withdrawal: 50,000 pts ($50).
 
 ## Tech Stack
 

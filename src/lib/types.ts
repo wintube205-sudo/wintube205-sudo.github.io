@@ -33,6 +33,9 @@ export interface UserRow {
   ref_code: string;
   referred_by: string | null;
   is_banned: number;
+  email_verified: number;
+  vip_until: string | null;
+  first_withdraw_done: number;
   created_at: string;
   updated_at: string;
 }
@@ -93,7 +96,9 @@ export const CONFIG = {
   AD_WATCH_MIN_SECS: 25,
   AD_WATCH_COOLDOWN_SECS: 120,
   PTS_PER_USD: 1000,
-  MIN_WITHDRAW: 5000,
+  MIN_WITHDRAW: 50000,
+  VIP_DURATION_DAYS: 30,
+  VIP_PRICE_USD: 5,
   REFERRAL_BONUS_REFERRER: 50,
   REFERRAL_BONUS_REFERRED: 150,
   SESSION_DURATION_HOURS: 72,

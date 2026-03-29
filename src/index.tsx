@@ -9,6 +9,7 @@ import pointsRoutes from './routes/points';
 import socialRoutes from './routes/social';
 import adminRoutes from './routes/admin';
 import adminPanelRoute from './routes/adminPanel';
+import profileRoutes from './routes/profile';
 
 const app = new Hono<HonoEnv>();
 
@@ -27,6 +28,7 @@ app.route('/api/points', pointsRoutes);
 app.route('/api', socialRoutes);
 app.route('/api/admin', adminRoutes);
 app.route('/admin', adminPanelRoute);
+app.route('/api/profile', profileRoutes);
 
 // ═══ API Health Check ═══
 app.get('/api/health', (c) => {
@@ -180,6 +182,35 @@ html,body{height:100%;overflow:hidden;background:#000;font-family:'Inter',sans-s
 @media(min-width:600px){
   .slide.shorts-slide iframe{width:56.25vh;height:100%;left:50%;transform:translateX(-50%)}
 }
+
+/* ═══ VIP ═══ */
+.vip-badge{display:inline-flex;align-items:center;gap:5px;background:linear-gradient(135deg,rgba(168,85,247,.25),rgba(236,72,153,.2));border:1px solid rgba(168,85,247,.4);border-radius:50px;padding:3px 10px;font-size:.68rem;font-weight:800;color:#c084fc}
+.vip-card{background:linear-gradient(135deg,rgba(88,28,135,.5),rgba(168,85,247,.2));border:1px solid rgba(168,85,247,.35);border-radius:14px;padding:14px;margin-bottom:10px}
+.vip-btn{background:linear-gradient(135deg,#7c3aed,#a855f7);border:none;color:#fff;padding:10px 16px;border-radius:10px;font-size:.82rem;font-weight:800;cursor:pointer;width:100%;margin-top:8px}
+.vip-inp{width:100%;background:rgba(255,255,255,.06);border:1.5px solid rgba(168,85,247,.3);color:#fff;padding:9px 12px;border-radius:9px;font-size:.78rem;outline:none;margin-top:6px;font-family:monospace}
+.vip-inp:focus{border-color:#a855f7}
+
+/* ═══ INTERSTITIAL ═══ */
+.interstitial-bg{position:fixed;inset:0;z-index:9500;background:#000;display:none;flex-direction:column;align-items:center;justify-content:center}
+.interstitial-bg.open{display:flex}
+.interstitial-skip{position:absolute;top:20px;right:16px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.2);color:#fff;padding:6px 14px;border-radius:50px;font-size:.78rem;cursor:pointer;display:flex;align-items:center;gap:6px}
+.interstitial-ad{width:100%;max-width:480px;min-height:280px;display:flex;align-items:center;justify-content:center;background:#111;border-radius:12px;overflow:hidden}
+
+/* ═══ PROFILE ═══ */
+.tx-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.05)}
+.tx-icon{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:.9rem;flex-shrink:0}
+.tx-info{flex:1}
+.tx-desc{font-size:.78rem;font-weight:600}
+.tx-date{font-size:.63rem;color:var(--muted);margin-top:1px}
+.tx-amt{font-size:.85rem;font-weight:800}
+.verify-banner{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:10px;padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px;font-size:.78rem}
+
+/* ═══ OFFERS ═══ */
+.offers-frame{width:100%;min-height:400px;border:none;border-radius:12px;background:#111}
+.captcha-row{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.captcha-q{flex:1;background:rgba(255,255,255,.05);border:1.5px solid rgba(255,255,255,.1);color:#fff;padding:10px 14px;border-radius:12px;font-size:.85rem;font-weight:700;text-align:center}
+.captcha-inp{width:80px;background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.1);color:#fff;padding:10px 12px;border-radius:12px;font-size:.9rem;text-align:center;outline:none}
+.captcha-inp:focus{border-color:var(--red)}
 </style>
 </head>
 <body>
@@ -209,6 +240,10 @@ html,body{height:100%;overflow:hidden;background:#000;font-family:'Inter',sans-s
       <input class="inp" id="rEmail" type="email" placeholder="Email" autocomplete="email">
       <input class="inp" id="rPass" type="password" placeholder="Password (min 6)" autocomplete="new-password">
       <input class="inp" id="rRef" type="text" placeholder="Referral code (optional)">
+      <div class="captcha-row">
+        <div class="captcha-q" id="captchaQ">? + ? = ?</div>
+        <input class="captcha-inp" id="captchaAns" type="number" placeholder="=?" autocomplete="off">
+      </div>
       <button class="submit-btn" id="regBtn" onclick="WT.doRegister()">Create Account &#8594;</button>
     </div>
     <div class="err" id="authErr"></div>
@@ -261,6 +296,9 @@ html,body{height:100%;overflow:hidden;background:#000;font-family:'Inter',sans-s
   <div class="nav-btn" id="navW" onclick="WT.openWithdraw()" style="display:none">
     <div class="nav-icon">&#128176;</div><div class="nav-lbl">Cash Out</div>
   </div>
+  <div class="nav-btn" id="navP" onclick="WT.openProfile()" style="display:none">
+    <div class="nav-icon">&#128100;</div><div class="nav-lbl">Profile</div>
+  </div>
 </div>
 
 <!-- EARN MODAL -->
@@ -295,14 +333,43 @@ html,body{height:100%;overflow:hidden;background:#000;font-family:'Inter',sans-s
       </div>
       <div class="eo-pts" style="color:var(--yellow)">+20</div>
     </div>
+    <div class="earn-offer" onclick="WT.openOffers()">
+      <div class="eo-icon" style="background:linear-gradient(135deg,#064e3b,#10b981)">&#127381;</div>
+      <div class="eo-info">
+        <div class="eo-name">Complete Offers &#8212; up to 500 pts</div>
+        <div class="eo-desc">Install apps, surveys & more &#8212; earn big!</div>
+      </div>
+      <div class="eo-pts" style="color:#10b981">+500</div>
+    </div>
     <div class="earn-offer" style="cursor:default">
       <div class="eo-icon" style="background:linear-gradient(135deg,#1e3a5f,#2563eb)">&#9654;</div>
       <div class="eo-info">
-        <div class="eo-name">Watch Videos</div>
-        <div class="eo-desc">Every 30s = 1 pt (max 120/hour)</div>
+        <div class="eo-name">Watch Videos <span id="vipWatchBadge" style="display:none" class="vip-badge">&#11088; VIP 2x</span></div>
+        <div class="eo-desc">Every 60s = 1 pt (VIP = 2 pts)</div>
       </div>
-      <div class="eo-pts" style="color:#60a5fa">+1</div>
+      <div class="eo-pts" style="color:#60a5fa" id="watchPtsBadge">+1</div>
     </div>
+
+    <!-- VIP SECTION -->
+    <div class="vip-card" id="vipCard">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div style="font-size:.85rem;font-weight:800">&#11088; VIP Membership</div>
+        <span class="vip-badge" id="vipStatusBadge">Not Active</span>
+      </div>
+      <div style="font-size:.72rem;color:#c084fc;margin-bottom:10px">
+        2x points from watching &bull; Send <strong>$5 USDT (TRC20)</strong> to activate 30 days
+      </div>
+      <div id="vipWallet" style="background:rgba(0,0,0,.3);border-radius:8px;padding:8px 10px;font-size:.68rem;font-family:monospace;color:#a78bfa;word-break:break-all;margin-bottom:6px;cursor:pointer" onclick="WT.copyVipAddr()">
+        TRX Wallet: <span id="vipAddr">TRxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</span>
+      </div>
+      <div id="vipForm" style="display:none">
+        <input class="vip-inp" id="vipTxHash" placeholder="Paste your TxHash after payment...">
+        <button class="vip-btn" onclick="WT.submitVipRequest()">&#11088; Submit VIP Request</button>
+      </div>
+      <div id="vipActive" style="display:none;color:#22c55e;font-size:.78rem;font-weight:700;text-align:center;padding:8px">&#9989; VIP Active until: <span id="vipExpiry"></span></div>
+      <button id="vipPayBtn" class="vip-btn" onclick="WT.showVipForm()" style="background:linear-gradient(135deg,#1d4ed8,#3b82f6)">I paid — Submit TX Hash</button>
+    </div>
+
     <div style="margin-top:8px;padding-top:10px;border-top:1px solid rgba(255,255,255,.06)">
       <div style="font-size:.7rem;color:var(--muted);margin-bottom:8px">Referral link</div>
       <div style="display:flex;gap:8px">
@@ -328,6 +395,10 @@ html,body{height:100%;overflow:hidden;background:#000;font-family:'Inter',sans-s
   <div class="modal-sheet">
     <div class="modal-handle"></div>
     <div style="font-size:1rem;font-weight:800;margin-bottom:14px">&#128176; Withdraw</div>
+    <div id="wVerifyBanner" class="verify-banner" style="display:none">
+      &#9888; Verify your email to withdraw.
+      <button onclick="WT.resendVerify()" style="margin-left:auto;background:#ef4444;border:none;color:#fff;padding:4px 10px;border-radius:6px;font-size:.72rem;cursor:pointer;white-space:nowrap">Resend</button>
+    </div>
     <div class="earn-bal" style="margin-bottom:14px">
       <div><div style="font-size:.72rem;color:var(--muted)">Balance</div><div style="font-size:1.2rem;font-weight:800;color:var(--yellow)" id="wBal">0</div></div>
       <div style="text-align:right"><div style="font-size:.72rem;color:var(--muted)">= USD</div><div style="font-size:1rem;font-weight:700;color:var(--green)" id="wUsdVal">$0.00</div></div>
@@ -339,14 +410,59 @@ html,body{height:100%;overflow:hidden;background:#000;font-family:'Inter',sans-s
       <optgroup label="&#127974; Bank"><option value="PayPal">PayPal</option><option value="Bank Transfer">Bank Transfer</option></optgroup>
       <optgroup label="&#128241; Mobile"><option value="Asiacell">Asiacell</option><option value="Zain Iraq">Zain Iraq</option></optgroup>
     </select>
-    <label class="w-lbl">Amount (pts, min 5000)</label>
-    <input class="w-inp" type="number" id="wAmt" placeholder="e.g. 5000" min="5000" step="1000" oninput="WT.calcWithdraw()">
+    <label class="w-lbl">Amount (pts, min 50,000 = $50)</label>
+    <input class="w-inp" type="number" id="wAmt" placeholder="e.g. 50000" min="50000" step="1000" oninput="WT.calcWithdraw()">
     <div style="font-size:.75rem;color:var(--yellow);margin-bottom:10px" id="wCalc"></div>
     <label class="w-lbl">Address / Account</label>
     <input class="w-inp" type="text" id="wAddr" placeholder="Enter your address">
     <button class="w-submit" onclick="WT.submitWithdraw()">Submit Request &#8594;</button>
     <div class="err" id="wErr"></div>
-    <div id="wOK" style="display:none;text-align:center;padding:16px"><div style="font-size:2rem">&#9989;</div><div style="font-weight:700;margin-top:6px">Request submitted!</div></div>
+    <div id="wOK" style="display:none;text-align:center;padding:16px"><div style="font-size:2rem">&#9989;</div><div style="font-weight:700;margin-top:6px">Request submitted!</div><div style="font-size:.78rem;color:var(--muted);margin-top:4px">We process within 1-3 business days</div></div>
+  </div>
+</div>
+
+<!-- PROFILE MODAL -->
+<div class="modal-bg" id="profileModal" onclick="if(event.target===this)WT.closeProfile()">
+  <div class="modal-sheet" style="max-height:90dvh;display:flex;flex-direction:column">
+    <div class="modal-handle"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <div style="font-size:1rem;font-weight:800">&#128100; My Profile</div>
+      <button onclick="WT.logout()" style="background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);color:#ef4444;padding:5px 12px;border-radius:8px;font-size:.72rem;cursor:pointer">Logout</button>
+    </div>
+    <div id="profileHead" style="margin-bottom:14px"></div>
+    <div style="display:flex;gap:6px;margin-bottom:12px">
+      <button id="pTabH" onclick="WT.showPTab('history')" style="flex:1;padding:7px;background:#222;border:none;color:#fff;border-radius:8px;cursor:pointer;font-size:.78rem;font-weight:700">Points History</button>
+      <button id="pTabW" onclick="WT.showPTab('withdrawals')" style="flex:1;padding:7px;background:#1a1a1a;border:none;color:#888;border-radius:8px;cursor:pointer;font-size:.78rem">Withdrawals</button>
+    </div>
+    <div style="flex:1;overflow-y:auto" id="profileBody">
+      <div style="text-align:center;color:var(--muted);padding:2rem">Loading...</div>
+    </div>
+  </div>
+</div>
+
+<!-- OFFERS MODAL -->
+<div class="modal-bg" id="offersModal" onclick="if(event.target===this)WT.closeOffers()">
+  <div class="modal-sheet" style="max-height:92dvh;padding-bottom:20px">
+    <div class="modal-handle"></div>
+    <div style="font-size:1rem;font-weight:800;margin-bottom:12px">&#127381; Complete Offers</div>
+    <div style="font-size:.75rem;color:var(--muted);margin-bottom:12px">Complete tasks and earn up to 500 pts per offer!</div>
+    <div id="offersContent" style="min-height:380px;display:flex;align-items:center;justify-content:center;background:#111;border-radius:12px;color:var(--muted);font-size:.82rem;text-align:center;padding:20px">
+      &#128738; Offers wall loading...<br><small style="font-size:.68rem;margin-top:8px;display:block">Configure CPAlead publisher ID in admin panel</small>
+    </div>
+  </div>
+</div>
+
+<!-- INTERSTITIAL AD -->
+<div class="interstitial-bg" id="interstitialBg">
+  <div class="interstitial-skip" id="interstitialSkip" onclick="WT.closeInterstitial()">
+    <span id="interstitialCount">5</span> Skip &#8594;
+  </div>
+  <div style="text-align:center;margin-bottom:16px;font-size:.72rem;color:rgba(255,255,255,.4)">Advertisement</div>
+  <div class="interstitial-ad" id="interstitialAd">
+    <div style="text-align:center;color:#444;font-size:.85rem;padding:20px">
+      <div style="font-size:2rem;margin-bottom:8px">&#128250;</div>
+      Ad Space — Configure your ad provider
+    </div>
   </div>
 </div>
 
@@ -364,11 +480,14 @@ html,body{height:100%;overflow:hidden;background:#000;font-family:'Inter',sans-s
 const API = '/api';
 const EARN_INTERVAL = 60;
 const CIRC = 69;
+const VIP_WALLET = 'TKxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'; // Set your USDT TRC20 wallet here
 
 // ═══ STATE ═══
 let _token = localStorage.getItem('wt_token') || '';
 let _user = null;
 let _points = 0;
+let _isVip = false;
+let _emailVerified = false;
 let _timerSecs = EARN_INTERVAL;
 let _timerInt = null;
 let _playing = false;
@@ -379,6 +498,11 @@ let _isSearch = false;
 let _loading = false;
 let _hlCoolLeft = 0;
 let _hlCoolTimer = null;
+let _videoCount = 0;
+let _interstitialTimer = null;
+let _captchaA = 0;
+let _captchaB = 0;
+let _pTab = 'history';
 
 const $ = (id) => document.getElementById(id);
 
@@ -407,12 +531,22 @@ async function api(path, opts = {}) {
 }
 
 // ═══ AUTH ═══
+function genCaptcha() {
+  _captchaA = Math.floor(Math.random() * 9) + 1;
+  _captchaB = Math.floor(Math.random() * 9) + 1;
+  const q = $('captchaQ');
+  if (q) q.textContent = _captchaA + ' + ' + _captchaB + ' = ?';
+  const a = $('captchaAns');
+  if (a) a.value = '';
+}
+
 function switchTab(tab) {
   $('fLogin').style.display = tab === 'login' ? '' : 'none';
   $('fRegister').style.display = tab === 'register' ? '' : 'none';
   $('tabL').classList.toggle('active', tab === 'login');
   $('tabR').classList.toggle('active', tab === 'register');
   $('authErr').textContent = '';
+  if (tab === 'register') genCaptcha();
 }
 
 async function doLogin() {
@@ -447,8 +581,10 @@ async function doRegister() {
   const email = $('rEmail').value.trim();
   const password = $('rPass').value;
   const referralCode = $('rRef').value.trim();
+  const captchaAns = parseInt($('captchaAns')?.value || '0');
   if (!name || !email || !password) { $('authErr').textContent = 'Fill all fields'; return; }
   if (password.length < 6) { $('authErr').textContent = 'Password min 6 chars'; return; }
+  if (captchaAns !== _captchaA + _captchaB) { $('authErr').textContent = 'Wrong answer, try again'; genCaptcha(); return; }
   
   $('regBtn').disabled = true;
   $('regBtn').textContent = 'Creating...';
@@ -491,6 +627,8 @@ async function checkSession() {
   if (data.user) {
     _user = data.user;
     _points = data.user.points;
+    _isVip = !!data.user.isVip;
+    _emailVerified = !!data.user.email_verified;
     updateUI();
   } else {
     logout();
@@ -502,20 +640,50 @@ function updateUI() {
   const ub = $('userBtn');
   if (_user) {
     ub.textContent = _user.name.charAt(0).toUpperCase();
-    ub.style.background = 'linear-gradient(135deg,#e63946,#ff6b35)';
-    const nw = $('navW'); if(nw) nw.style.display = '';
+    ub.style.background = _isVip
+      ? 'linear-gradient(135deg,#7c3aed,#a855f7)'
+      : 'linear-gradient(135deg,#e63946,#ff6b35)';
+    ['navW','navP'].forEach(id => { const n = $(id); if(n) n.style.display = ''; });
   } else {
     ub.textContent = '?';
     ub.style.background = 'rgba(255,255,255,.15)';
-    const nw = $('navW'); if(nw) nw.style.display = 'none';
+    ['navW','navP'].forEach(id => { const n = $(id); if(n) n.style.display = 'none'; });
   }
-  const pb = $('ptsBadge'); if(pb) pb.textContent = _points + ' pts \\u2B50';
-  const eb = $('earnBalNum'); if(eb) eb.textContent = _points;
+  const pb = $('ptsBadge'); if(pb) pb.textContent = _points.toLocaleString() + ' pts \\u2B50';
+  const eb = $('earnBalNum'); if(eb) eb.textContent = _points.toLocaleString();
   const eu = $('earnUsd'); if(eu) eu.textContent = '$' + (_points / 1000).toFixed(2);
-  const wb = $('wBal'); if(wb) wb.textContent = _points;
+  const wb = $('wBal'); if(wb) wb.textContent = _points.toLocaleString();
   const wu = $('wUsdVal'); if(wu) wu.textContent = '$' + (_points / 1000).toFixed(2);
-  const ri = $('refInp'); 
+  const ri = $('refInp');
   if(ri && _user) ri.value = location.origin + '/?ref=' + (_user.refCode || '');
+
+  // VIP badge in earn modal
+  const vipBadge = $('vipWatchBadge');
+  const watchBadge = $('watchPtsBadge');
+  if (vipBadge) vipBadge.style.display = _isVip ? '' : 'none';
+  if (watchBadge) watchBadge.textContent = _isVip ? '+2' : '+1';
+
+  // VIP card state
+  const vipActive = $('vipActive');
+  const vipForm = $('vipForm');
+  const vipPayBtn = $('vipPayBtn');
+  const vipStatusBadge = $('vipStatusBadge');
+  const vipAddr = $('vipAddr');
+  if (vipAddr) vipAddr.textContent = VIP_WALLET;
+  if (_isVip && _user) {
+    if(vipActive) { vipActive.style.display = ''; const exp = $('vipExpiry'); if(exp) exp.textContent = (_user.vip_until||'').slice(0,10); }
+    if(vipForm) vipForm.style.display = 'none';
+    if(vipPayBtn) vipPayBtn.style.display = 'none';
+    if(vipStatusBadge) { vipStatusBadge.textContent = '\\u2B50 Active'; vipStatusBadge.style.color = '#22c55e'; }
+  } else {
+    if(vipActive) vipActive.style.display = 'none';
+    if(vipPayBtn) vipPayBtn.style.display = '';
+    if(vipStatusBadge) { vipStatusBadge.textContent = 'Not Active'; vipStatusBadge.style.color = ''; }
+  }
+
+  // Verify email banner in withdraw
+  const wVerify = $('wVerifyBanner');
+  if (wVerify) wVerify.style.display = (_user && !_emailVerified) ? '' : 'none';
 }
 
 function onUserClick() {
@@ -665,6 +833,12 @@ function onSlideLeave(slide) {
 async function onSlideEnter(slide) {
   if (_activeSlide === slide) return;
   _activeSlide = slide;
+
+  // Show interstitial every 5 videos
+  _videoCount++;
+  if (_videoCount > 0 && _videoCount % 5 === 0) {
+    showInterstitial();
+  }
 
   if (!_user) return;
 
@@ -843,8 +1017,9 @@ async function submitWithdraw() {
   const method = $('wMethod').value;
   const address = ($('wAddr').value || '').trim();
   const err = $('wErr');
-  
-  if (!method || !address || amount < 5000) { err.textContent = 'Fill all fields correctly'; return; }
+
+  if (!_emailVerified) { err.textContent = 'Verify your email first!'; return; }
+  if (!method || !address || amount < 50000) { err.textContent = 'Min 50,000 pts ($50). Fill all fields'; return; }
   
   const data = await api('/withdraw', {
     method: 'POST',
@@ -866,6 +1041,147 @@ function shareVid(vid) {
   const url = 'https://youtu.be/' + vid;
   if (navigator.share) navigator.share({ title: 'WinTube', url }).catch(() => {});
   else navigator.clipboard.writeText(url).then(() => showToast('Copied! \\u2705'));
+}
+
+// ═══ INTERSTITIAL AD ═══
+function showInterstitial() {
+  const bg = $('interstitialBg');
+  if (!bg) return;
+  bg.classList.add('open');
+  let count = 5;
+  const countEl = $('interstitialCount');
+  const skipEl = $('interstitialSkip');
+  if(countEl) countEl.textContent = count;
+  if(skipEl) skipEl.style.opacity = '.4';
+
+  clearInterval(_interstitialTimer);
+  _interstitialTimer = setInterval(() => {
+    count--;
+    if(countEl) countEl.textContent = count;
+    if (count <= 0) {
+      clearInterval(_interstitialTimer);
+      if(skipEl) skipEl.style.opacity = '1';
+    }
+  }, 1000);
+}
+function closeInterstitial() {
+  const bg = $('interstitialBg');
+  if (bg) bg.classList.remove('open');
+  clearInterval(_interstitialTimer);
+}
+
+// ═══ OFFERS ═══
+function openOffers() {
+  if (!_user) { $('authOv').classList.remove('hidden'); return; }
+  closeEarn();
+  $('offersModal').classList.add('open');
+  // TODO: Replace CPABUILD_ID with your CPAlead/CPAbuild publisher ID
+  const CPABUILD_ID = 'YOUR_PUBLISHER_ID';
+  const oc = $('offersContent');
+  if (oc && CPABUILD_ID !== 'YOUR_PUBLISHER_ID') {
+    oc.innerHTML = '<iframe class="offers-frame" src="https://www.cpabuild.com/offerwall.php?app=' +
+      CPABUILD_ID + '&aff_sub=' + (_user?.uid || '') + '"></iframe>';
+  }
+}
+function closeOffers() { $('offersModal').classList.remove('open'); }
+
+// ═══ PROFILE ═══
+function openProfile() {
+  if (!_user) { $('authOv').classList.remove('hidden'); return; }
+  $('profileModal').classList.add('open');
+  renderProfileHead();
+  loadHistory();
+}
+function closeProfile() { $('profileModal').classList.remove('open'); }
+
+function renderProfileHead() {
+  const h = $('profileHead');
+  if (!h || !_user) return;
+  const verBadge = _emailVerified
+    ? '<span style="color:#22c55e;font-size:.68rem;font-weight:700">&#9989; Verified</span>'
+    : '<span style="color:#ef4444;font-size:.68rem;font-weight:700;cursor:pointer" onclick="WT.resendVerify()">&#9888; Not verified — click to resend</span>';
+  const vipBadge = _isVip
+    ? '<span class="vip-badge" style="margin-left:6px">&#11088; VIP</span>'
+    : '';
+  h.innerHTML = '<div style="display:flex;align-items:center;gap:12px">' +
+    '<div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#e63946,#ff6b35);display:flex;align-items:center;justify-content:center;font-size:1.2rem;font-weight:800">' +
+    _user.name.charAt(0).toUpperCase() + '</div>' +
+    '<div><div style="font-weight:800;font-size:.95rem">' + escHtml(_user.name) + vipBadge + '</div>' +
+    '<div style="font-size:.72rem;color:var(--muted)">' + escHtml(_user.email) + ' ' + verBadge + '</div>' +
+    '<div style="font-size:.75rem;color:var(--yellow);font-weight:700;margin-top:2px">' + _points.toLocaleString() + ' pts = $' + (_points/1000).toFixed(2) + '</div>' +
+    '</div></div>';
+}
+
+function showPTab(tab) {
+  _pTab = tab;
+  $('pTabH').style.background = tab === 'history' ? '#222' : '#1a1a1a';
+  $('pTabH').style.color = tab === 'history' ? '#fff' : '#888';
+  $('pTabH').style.fontWeight = tab === 'history' ? '700' : '400';
+  $('pTabW').style.background = tab === 'withdrawals' ? '#222' : '#1a1a1a';
+  $('pTabW').style.color = tab === 'withdrawals' ? '#fff' : '#888';
+  $('pTabW').style.fontWeight = tab === 'withdrawals' ? '700' : '400';
+  if (tab === 'history') loadHistory();
+  else loadWithdrawalHistory();
+}
+
+async function loadHistory() {
+  const body = $('profileBody');
+  body.innerHTML = '<div style="text-align:center;color:var(--muted);padding:1.5rem">Loading...</div>';
+  const data = await api('/profile/history');
+  if (!data.history?.length) { body.innerHTML = '<div style="text-align:center;color:var(--muted);padding:1.5rem">No transactions yet</div>'; return; }
+  const typeColors = { signup_bonus:'#22c55e', watch:'#3b82f6', referral_bonus:'#a855f7', withdrawal:'#ef4444', refund:'#22c55e', ad_watch:'#f59e0b', smart_offer:'#c084fc' };
+  const typeIcons = { signup_bonus:'&#127873;', watch:'&#9654;', referral_bonus:'&#128101;', withdrawal:'&#128176;', refund:'&#10227;', ad_watch:'&#128250;', smart_offer:'&#127381;' };
+  body.innerHTML = data.history.map(tx => {
+    const col = typeColors[tx.type] || '#888';
+    const icon = typeIcons[tx.type] || '&#9679;';
+    const sign = tx.amount > 0 ? '+' : '';
+    return '<div class="tx-row"><div class="tx-icon" style="background:' + col + '22;color:' + col + '">' + icon + '</div>' +
+      '<div class="tx-info"><div class="tx-desc">' + escHtml(tx.description||tx.type) + '</div>' +
+      '<div class="tx-date">' + (tx.created_at||'').slice(0,16).replace('T',' ') + '</div></div>' +
+      '<div class="tx-amt" style="color:' + col + '">' + sign + tx.amount + ' pts</div></div>';
+  }).join('');
+}
+
+async function loadWithdrawalHistory() {
+  const body = $('profileBody');
+  body.innerHTML = '<div style="text-align:center;color:var(--muted);padding:1.5rem">Loading...</div>';
+  const data = await api('/profile/withdrawals');
+  if (!data.withdrawals?.length) { body.innerHTML = '<div style="text-align:center;color:var(--muted);padding:1.5rem">No withdrawals yet. Minimum: 50,000 pts ($50)</div>'; return; }
+  const statusColors = { pending:'#fbbf24', approved:'#22c55e', rejected:'#ef4444' };
+  body.innerHTML = data.withdrawals.map(w => {
+    const col = statusColors[w.status] || '#888';
+    return '<div class="tx-row"><div class="tx-icon" style="background:' + col + '22;color:' + col + '">&#128176;</div>' +
+      '<div class="tx-info"><div class="tx-desc">$' + w.usd_value + ' via ' + escHtml(w.method) + '</div>' +
+      '<div class="tx-date">' + (w.created_at||'').slice(0,16).replace('T',' ') + (w.admin_note ? ' · ' + escHtml(w.admin_note) : '') + '</div></div>' +
+      '<div class="tx-amt" style="color:' + col + '">' + w.status.toUpperCase() + '</div></div>';
+  }).join('');
+}
+
+// ═══ VIP ═══
+function showVipForm() {
+  const vf = $('vipForm');
+  const vb = $('vipPayBtn');
+  if (vf) vf.style.display = '';
+  if (vb) vb.style.display = 'none';
+}
+
+async function submitVipRequest() {
+  const hash = ($('vipTxHash')?.value || '').trim();
+  if (!hash || hash.length < 10) { showToast('Enter a valid TX hash', '#ef4444'); return; }
+  const data = await api('/profile/vip/request', { method: 'POST', body: JSON.stringify({ txHash: hash }) });
+  if (data.error) { showToast(data.error, '#ef4444'); return; }
+  showToast('VIP request sent! We\\'ll activate in 24h \\u2B50');
+  const vf = $('vipForm'); if (vf) vf.style.display = 'none';
+}
+
+function copyVipAddr() {
+  navigator.clipboard.writeText(VIP_WALLET).then(() => showToast('Wallet copied! \\u2B50'));
+}
+
+async function resendVerify() {
+  const data = await api('/profile/resend-verify', { method: 'POST' });
+  if (data.error) showToast(data.error, '#ef4444');
+  else showToast('Verification email sent! Check inbox \\u2709');
 }
 
 // ═══ NAV ═══
@@ -920,6 +1236,7 @@ initSlideObserver();
   } catch(e) {}
 })();
 
+genCaptcha();
 checkSession();
 loadFeed();
 
@@ -930,6 +1247,11 @@ window.WT = {
   openEarn, closeEarn, claimSmartOffer, claimAdWatch,
   openLB, closeLB, openWithdraw, closeWithdraw,
   calcWithdraw, submitWithdraw, copyRef, logout,
+  openProfile, closeProfile, showPTab,
+  openOffers, closeOffers,
+  closeInterstitial,
+  showVipForm, submitVipRequest, copyVipAddr,
+  resendVerify,
 };
 
 })();

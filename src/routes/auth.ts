@@ -4,6 +4,7 @@ import type { HonoEnv } from '../lib/types';
 import { CONFIG } from '../lib/types';
 import { hashPassword, verifyPassword, generateToken, generateId, generateRefCode } from '../lib/crypto';
 import { checkRateLimit } from '../lib/rateLimit';
+import { sendVerifyEmail } from './profile';
 
 // ═══ GOOGLE OAUTH HELPER ═══
 const GOOGLE_AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
@@ -85,12 +86,15 @@ auth.post('/register', async (c) => {
     }
   }
 
+  // Send verification email (non-blocking)
+  sendVerifyEmail(db, userId as number, email.toLowerCase(), name.trim(), c.env.RESEND_API_KEY).catch(() => {});
+
   // Create session
   const session = await createSession(db, userId as number, c.req.raw);
 
   return c.json({
     success: true,
-    user: { uid, name: name.trim(), email: email.toLowerCase(), points: CONFIG.SIGNUP_BONUS, refCode },
+    user: { uid, name: name.trim(), email: email.toLowerCase(), points: CONFIG.SIGNUP_BONUS, refCode, emailVerified: false },
     token: session.token,
   }, 201);
 });
@@ -260,6 +264,31 @@ auth.get('/google/callback', async (c) => {
   </script></body></html>`);
 });
 
+// ═══ VERIFY EMAIL ═══
+auth.get('/verify-email', async (c) => {
+  const token = c.req.query('token');
+  if (!token) return c.html('<script>window.location="/";alert("Invalid link")</script>');
+
+  const db = c.env.DB;
+  const row = await db.prepare(
+    `SELECT user_id FROM email_verifications WHERE token = ? AND expires_at > datetime('now')`
+  ).bind(token).first<{ user_id: number }>();
+
+  if (!row) {
+    return c.html('<script>window.location="/";alert("Link expired or invalid. Please request a new one.")</script>');
+  }
+
+  await db.batch([
+    db.prepare(`UPDATE users SET email_verified = 1 WHERE id = ?`).bind(row.user_id),
+    db.prepare(`DELETE FROM email_verifications WHERE user_id = ?`).bind(row.user_id),
+  ]);
+
+  return c.html(`<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body><script>
+    alert('✅ Email verified! You can now make withdrawals.');
+    window.location.replace('/');
+  </script></body></html>`);
+});
+
 // ═══ LOGOUT ═══
 auth.post('/logout', async (c) => {
   const token = c.req.header('Authorization')?.replace('Bearer ', '');
@@ -276,14 +305,17 @@ auth.get('/me', async (c) => {
 
   const db = c.env.DB;
   const session = await db.prepare(
-    `SELECT u.uid, u.name, u.email, u.points, u.ref_code, u.avatar_url, u.auth_provider
+    `SELECT u.uid, u.name, u.email, u.points, u.ref_code, u.avatar_url, u.auth_provider,
+            u.email_verified, u.vip_until, u.is_banned
      FROM sessions s JOIN users u ON s.user_id = u.id
      WHERE s.token = ? AND s.expires_at > datetime('now') AND u.is_banned = 0`
-  ).bind(token).first();
+  ).bind(token).first<any>();
 
   if (!session) return c.json({ user: null });
 
-  return c.json({ user: session });
+  const isVip = session.vip_until ? new Date(session.vip_until) > new Date() : false;
+
+  return c.json({ user: { ...session, isVip } });
 });
 
 // ═══ Helper: Create Session ═══

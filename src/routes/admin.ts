@@ -96,4 +96,54 @@ admin.post('/users/:uid/ban', async (c) => {
   return c.json({ success: true, banned: ban });
 });
 
+// ═══ VERIFY USER EMAIL MANUALLY ═══
+admin.post('/users/:uid/verify', async (c) => {
+  const db = c.env.DB;
+  const uid = c.req.param('uid');
+  await db.prepare(`UPDATE users SET email_verified=1 WHERE uid=?`).bind(uid).run();
+  return c.json({ success: true });
+});
+
+// ═══ LIST VIP REQUESTS ═══
+admin.get('/vip-requests', async (c) => {
+  const db = c.env.DB;
+  const rows = await db.prepare(
+    `SELECT v.id, v.tx_hash, v.amount_usd, v.status, v.created_at,
+            u.name, u.email, u.uid
+     FROM vip_requests v JOIN users u ON v.user_id = u.id
+     ORDER BY v.created_at DESC LIMIT 50`
+  ).all();
+  return c.json({ requests: rows.results || [] });
+});
+
+// ═══ ACTIVATE VIP ═══
+admin.post('/vip-requests/:id/activate', async (c) => {
+  const db = c.env.DB;
+  const id = parseInt(c.req.param('id'));
+
+  const req = await db.prepare(
+    `SELECT v.*, u.id as userId FROM vip_requests v JOIN users u ON v.user_id = u.id WHERE v.id = ?`
+  ).bind(id).first<{ id: number; userId: number; status: string }>();
+
+  if (!req) return c.json({ error: 'Not found' }, 404);
+  if (req.status !== 'pending') return c.json({ error: 'Already processed' }, 400);
+
+  const vipUntil = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+
+  await db.batch([
+    db.prepare(`UPDATE vip_requests SET status='activated', activated_at=datetime('now') WHERE id=?`).bind(id),
+    db.prepare(`UPDATE users SET vip_until=? WHERE id=?`).bind(vipUntil, req.userId),
+  ]);
+
+  return c.json({ success: true, vipUntil });
+});
+
+// ═══ REJECT VIP ═══
+admin.post('/vip-requests/:id/reject', async (c) => {
+  const db = c.env.DB;
+  const id = parseInt(c.req.param('id'));
+  await db.prepare(`UPDATE vip_requests SET status='rejected' WHERE id=?`).bind(id).run();
+  return c.json({ success: true });
+});
+
 export default admin;

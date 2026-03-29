@@ -72,9 +72,13 @@ tr:hover td{background:#111}
   <div class="nav">
     <button class="nav-btn active" onclick="showTab('withdrawals')">💰 Withdrawals</button>
     <button class="nav-btn" onclick="showTab('users')">👥 Users</button>
+    <button class="nav-btn" onclick="showTab('vip')">⭐ VIP</button>
     <button class="nav-btn" onclick="showTab('stats')">📊 Stats</button>
   </div>
   <div class="content">
+    <div id="tab-vip" class="tab-content">
+      <div id="vipTable"></div>
+    </div>
     <div id="tab-withdrawals" class="tab-content active">
       <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
         <button class="btn-approve" onclick="loadWithdrawals('pending')" style="padding:6px 14px;font-size:.8rem">Pending</button>
@@ -130,6 +134,7 @@ function showTab(name) {
   event.target.classList.add('active');
   if (name === 'users') loadUsers();
   if (name === 'stats') loadStats();
+  if (name === 'vip') loadVipRequests();
 }
 
 async function loadWithdrawals(status) {
@@ -170,25 +175,71 @@ async function loadUsers() {
   const data = await adminFetch('/users');
   if (!data) return;
   const users = data.users;
-  let html = '<table><thead><tr><th>Name</th><th>Email</th><th>Points</th><th>Provider</th><th>Joined</th><th>Actions</th></tr></thead><tbody>';
+  let html = '<table><thead><tr><th>Name</th><th>Email</th><th>Points</th><th>Provider</th><th>Verified</th><th>VIP</th><th>Joined</th><th>Actions</th></tr></thead><tbody>';
   users.forEach(u => {
     html += \`<tr>
       <td>\${esc(u.name)}</td>
       <td>\${esc(u.email)}</td>
-      <td>\${u.points.toLocaleString()}</td>
+      <td>\${(u.points||0).toLocaleString()}</td>
       <td>\${u.auth_provider}</td>
+      <td>\${u.email_verified ? '✅' : '❌'}</td>
+      <td>\${u.vip_until ? '⭐ ' + u.vip_until.slice(0,10) : '—'}</td>
       <td>\${u.created_at?.slice(0,10)}</td>
-      <td><button class="btn-ban" onclick="toggleBan('\${u.uid}',\${u.is_banned?0:1})">\${u.is_banned?'Unban':'Ban'}</button></td>
+      <td class="action-btns">
+        <button class="btn-ban" onclick="toggleBan('\${u.uid}',\${u.is_banned?0:1})">\${u.is_banned?'Unban':'Ban'}</button>
+        \${!u.email_verified ? \`<button class="btn-approve" onclick="verifyUser('\${u.uid}')">Verify</button>\` : ''}
+      </td>
     </tr>\`;
   });
   html += '</tbody></table>';
   document.getElementById('usersTable').innerHTML = html;
 }
 
+async function verifyUser(uid) {
+  if (!confirm('Manually verify email for user ' + uid + '?')) return;
+  const data = await adminFetch('/users/' + uid + '/verify', { method: 'POST', body: '{}' });
+  if (data?.success) { loadUsers(); }
+}
+
 async function toggleBan(uid, ban) {
   if (!confirm((ban ? 'BAN' : 'UNBAN') + ' user ' + uid + '?')) return;
   const data = await adminFetch('/users/' + uid + '/ban', { method: 'POST', body: JSON.stringify({ ban: !!ban }) });
   if (data?.success) { loadUsers(); }
+}
+
+async function loadVipRequests() {
+  document.getElementById('vipTable').innerHTML = '<div class="empty">Loading...</div>';
+  const data = await adminFetch('/vip-requests');
+  if (!data) return;
+  const reqs = data.requests;
+  if (!reqs.length) { document.getElementById('vipTable').innerHTML = '<div class="empty">No VIP requests</div>'; return; }
+  let html = '<table><thead><tr><th>User</th><th>Email</th><th>TX Hash</th><th>Amount</th><th>Status</th><th>Date</th><th>Actions</th></tr></thead><tbody>';
+  reqs.forEach(r => {
+    html += \`<tr>
+      <td>\${esc(r.name)}</td>
+      <td>\${esc(r.email)}</td>
+      <td style="font-family:monospace;font-size:.7rem;max-width:120px;word-break:break-all">\${esc(r.tx_hash)}</td>
+      <td>$\${r.amount_usd}</td>
+      <td><span class="badge badge-\${r.status==='activated'?'approved':r.status==='rejected'?'rejected':'pending'}">\${r.status}</span></td>
+      <td>\${r.created_at?.slice(0,16).replace('T',' ')}</td>
+      <td>\${r.status==='pending' ? \`<div class="action-btns"><button class="btn-approve" onclick="activateVip(\${r.id})">⭐ Activate</button><button class="btn-reject" onclick="rejectVip(\${r.id})">✕ Reject</button></div>\` : '—'}</td>
+    </tr>\`;
+  });
+  html += '</tbody></table>';
+  document.getElementById('vipTable').innerHTML = html;
+}
+
+async function activateVip(id) {
+  if (!confirm('Activate VIP for request #' + id + '?')) return;
+  const data = await adminFetch('/vip-requests/' + id + '/activate', { method: 'POST', body: '{}' });
+  if (data?.success) { alert('VIP activated! Expires: ' + data.vipUntil?.slice(0,10)); loadVipRequests(); }
+  else alert('Error: ' + (data?.error || 'Unknown'));
+}
+
+async function rejectVip(id) {
+  if (!confirm('Reject VIP request #' + id + '?')) return;
+  const data = await adminFetch('/vip-requests/' + id + '/reject', { method: 'POST', body: '{}' });
+  if (data?.success) loadVipRequests();
 }
 
 async function loadStats() {

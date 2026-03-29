@@ -34,12 +34,19 @@ social.post('/withdraw', requireAuth, async (c) => {
     amount?: number; method?: string; address?: string;
   }>();
 
+  // Check email verified
+  const userFull = await db.prepare('SELECT email_verified, first_withdraw_done FROM users WHERE id = ?')
+    .bind(user.id).first<{ email_verified: number; first_withdraw_done: number }>();
+  if (!userFull?.email_verified) {
+    return c.json({ error: 'Please verify your email before withdrawing. Check your inbox.' }, 403);
+  }
+
   // Validation
   if (!amount || !method || !address) {
     return c.json({ error: 'All fields required' }, 400);
   }
   if (typeof amount !== 'number' || amount < CONFIG.MIN_WITHDRAW || amount % 1000 !== 0) {
-    return c.json({ error: `Minimum ${CONFIG.MIN_WITHDRAW} pts, must be multiple of 1000` }, 400);
+    return c.json({ error: `Minimum ${CONFIG.MIN_WITHDRAW} pts (=$${CONFIG.MIN_WITHDRAW/CONFIG.PTS_PER_USD}), must be multiple of 1000` }, 400);
   }
   if (address.length > 200 || method.length > 50) {
     return c.json({ error: 'Invalid input' }, 400);
@@ -68,9 +75,10 @@ social.post('/withdraw', requireAuth, async (c) => {
   }
 
   const usdValue = (amount / CONFIG.PTS_PER_USD).toFixed(2);
+  const isFirstWithdraw = userFull.first_withdraw_done === 0;
 
   // Deduct points and create withdrawal atomically
-  await db.batch([
+  const ops: any[] = [
     db.prepare('UPDATE users SET points = points - ?, updated_at = datetime(\'now\') WHERE id = ? AND points >= ?')
       .bind(amount, user.id, amount),
     db.prepare(
@@ -81,7 +89,11 @@ social.post('/withdraw', requireAuth, async (c) => {
       `INSERT INTO point_transactions (user_id, amount, type, description)
        VALUES (?, ?, 'withdrawal', ?)`
     ).bind(user.id, -amount, `Withdrawal: $${usdValue} via ${method}`),
-  ]);
+  ];
+  if (isFirstWithdraw) {
+    ops.push(db.prepare(`UPDATE users SET first_withdraw_done = 1 WHERE id = ?`).bind(user.id));
+  }
+  await db.batch(ops);
 
   const updated = await db.prepare('SELECT points FROM users WHERE id = ?')
     .bind(user.id).first<{ points: number }>();
