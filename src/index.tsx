@@ -357,13 +357,16 @@ html,body{height:100%;overflow:hidden;background:#000;font-family:'Inter',sans-s
         <span class="vip-badge" id="vipStatusBadge">Not Active</span>
       </div>
       <div style="font-size:.72rem;color:#c084fc;margin-bottom:10px">
-        2x points from watching &bull; Send <strong>$5 USDT (TRC20)</strong> to activate 30 days
+        2x points from watching &bull; Pay <strong>$5</strong> via any method below to activate 30 days
       </div>
       <div id="vipWallet" style="background:rgba(0,0,0,.3);border-radius:8px;padding:8px 10px;font-size:.68rem;font-family:monospace;color:#a78bfa;word-break:break-all;margin-bottom:6px;cursor:pointer" onclick="WT.copyVipAddr()">
-        TRX Wallet: <span id="vipAddr">TRxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</span>
+        &#128142; USDT TRC20: <span id="vipAddr">TQovQSgQmL6YD9SCDWiMxqhPWC6VkTnVbv</span>
+      </div>
+      <div style="background:rgba(0,0,0,.3);border-radius:8px;padding:8px 10px;font-size:.68rem;font-family:monospace;color:#f9a8d4;word-break:break-all;margin-bottom:6px;cursor:pointer" onclick="WT.copyVipCard()">
+        &#128179; Visa/Mastercard: <span id="vipCardNum">5759527202</span>
       </div>
       <div id="vipForm" style="display:none">
-        <input class="vip-inp" id="vipTxHash" placeholder="Paste your TxHash after payment...">
+        <input class="vip-inp" id="vipTxHash" placeholder="Paste TxHash or card payment reference...">
         <button class="vip-btn" onclick="WT.submitVipRequest()">&#11088; Submit VIP Request</button>
       </div>
       <div id="vipActive" style="display:none;color:#22c55e;font-size:.78rem;font-weight:700;text-align:center;padding:8px">&#9989; VIP Active until: <span id="vipExpiry"></span></div>
@@ -481,6 +484,7 @@ const API = '/api';
 const EARN_INTERVAL = 60;
 const CIRC = 69;
 const VIP_WALLET = 'TQovQSgQmL6YD9SCDWiMxqhPWC6VkTnVbv';
+const VIP_CARD = '5759527202';
 
 // ═══ STATE ═══
 let _token = localStorage.getItem('wt_token') || '';
@@ -670,6 +674,7 @@ function updateUI() {
   const vipStatusBadge = $('vipStatusBadge');
   const vipAddr = $('vipAddr');
   if (vipAddr) vipAddr.textContent = VIP_WALLET;
+  const vipCard = $('vipCardNum'); if (vipCard) vipCard.textContent = VIP_CARD;
   if (_isVip && _user) {
     if(vipActive) { vipActive.style.display = ''; const exp = $('vipExpiry'); if(exp) exp.textContent = (_user.vip_until||'').slice(0,10); }
     if(vipForm) vipForm.style.display = 'none';
@@ -1178,6 +1183,10 @@ function copyVipAddr() {
   navigator.clipboard.writeText(VIP_WALLET).then(() => showToast('Wallet copied! \\u2B50'));
 }
 
+function copyVipCard() {
+  navigator.clipboard.writeText(VIP_CARD).then(() => showToast('Card number copied! \\uD83D\\uDCCB'));
+}
+
 async function resendVerify() {
   const data = await api('/profile/resend-verify', { method: 'POST' });
   if (data.error) showToast(data.error, '#ef4444');
@@ -1250,7 +1259,7 @@ window.WT = {
   openProfile, closeProfile, showPTab,
   openOffers, closeOffers,
   closeInterstitial,
-  showVipForm, submitVipRequest, copyVipAddr,
+  showVipForm, submitVipRequest, copyVipAddr, copyVipCard,
   resendVerify,
 };
 
