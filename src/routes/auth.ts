@@ -87,7 +87,10 @@ auth.post('/register', async (c) => {
   }
 
   // Send verification email (non-blocking)
-  sendVerifyEmail(db, userId as number, email.toLowerCase(), name.trim(), c.env.RESEND_API_KEY).catch(() => {});
+  const proto = c.req.header('x-forwarded-proto') || 'https';
+  const host = c.req.header('host') || 'wintube.win';
+  const baseUrl = `${proto}://${host}`;
+  sendVerifyEmail(db, userId as number, email.toLowerCase(), name.trim(), c.env.RESEND_API_KEY, baseUrl).catch(() => {});
 
   // Create session
   const session = await createSession(db, userId as number, c.req.raw);

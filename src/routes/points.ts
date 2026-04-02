@@ -102,21 +102,23 @@ points.post('/watch/heartbeat', async (c) => {
     });
   }
 
-  // Award point
+  // Award point — VIP users get 2x
+  const isVip = user.vip_until ? new Date(user.vip_until) > new Date() : false;
+  const earnAmount = isVip ? CONFIG.POINTS_PER_WATCH * 2 : CONFIG.POINTS_PER_WATCH;
   const newTotal = session.total_seconds + Math.round(elapsed);
-  const newPointsEarned = session.points_earned + CONFIG.POINTS_PER_WATCH;
+  const newPointsEarned = session.points_earned + earnAmount;
 
   await db.batch([
     db.prepare('UPDATE users SET points = points + ?, updated_at = datetime(\'now\') WHERE id = ?')
-      .bind(CONFIG.POINTS_PER_WATCH, user.id),
+      .bind(earnAmount, user.id),
     db.prepare(
       `UPDATE watch_sessions SET last_heartbeat = datetime('now'), 
        total_seconds = ?, points_earned = ? WHERE id = ?`
     ).bind(newTotal, newPointsEarned, parseInt(sessionId) || 0),
     db.prepare(
       `INSERT INTO point_transactions (user_id, amount, type, description, metadata)
-       VALUES (?, ?, 'watch', 'Video watching reward', ?)`
-    ).bind(user.id, CONFIG.POINTS_PER_WATCH, JSON.stringify({ sessionId: parseInt(sessionId) || 0 })),
+       VALUES (?, ?, 'watch', ?, ?)`
+    ).bind(user.id, earnAmount, isVip ? 'Video watching reward (VIP 2x)' : 'Video watching reward', JSON.stringify({ sessionId: parseInt(sessionId) || 0 })),
   ]);
 
   // Get updated points
@@ -125,8 +127,8 @@ points.post('/watch/heartbeat', async (c) => {
 
   return c.json({
     earned: true,
-    amount: CONFIG.POINTS_PER_WATCH,
-    points: updated?.points || user.points + CONFIG.POINTS_PER_WATCH,
+    amount: earnAmount,
+    points: updated?.points || user.points + earnAmount,
     totalWatchTime: newTotal,
   });
 });

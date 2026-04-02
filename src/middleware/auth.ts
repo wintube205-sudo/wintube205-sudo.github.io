@@ -14,7 +14,8 @@ export const requireAuth = createMiddleware<HonoEnv>(async (c, next) => {
   const db = c.env.DB;
   const session = await db.prepare(
     `SELECT s.*, u.id as uid_num, u.uid, u.name, u.email, u.points, u.ref_code, 
-            u.is_banned, u.auth_provider, u.avatar_url
+            u.is_banned, u.auth_provider, u.avatar_url,
+            u.email_verified, u.vip_until, u.first_withdraw_done
      FROM sessions s 
      JOIN users u ON s.user_id = u.id 
      WHERE s.token = ? AND s.expires_at > datetime('now')`
@@ -41,6 +42,9 @@ export const requireAuth = createMiddleware<HonoEnv>(async (c, next) => {
     ref_code: session.ref_code!,
     referred_by: null,
     is_banned: session.is_banned!,
+    email_verified: session.email_verified || 0,
+    vip_until: session.vip_until || null,
+    first_withdraw_done: session.first_withdraw_done || 0,
     created_at: '',
     updated_at: '',
   });
@@ -58,7 +62,8 @@ export const optionalAuth = createMiddleware<HonoEnv>(async (c, next) => {
     const db = c.env.DB;
     const session = await db.prepare(
       `SELECT s.*, u.id as uid_num, u.uid, u.name, u.email, u.points, u.ref_code, 
-              u.is_banned, u.auth_provider, u.avatar_url
+              u.is_banned, u.auth_provider, u.avatar_url,
+              u.email_verified, u.vip_until, u.first_withdraw_done
        FROM sessions s 
        JOIN users u ON s.user_id = u.id 
        WHERE s.token = ? AND s.expires_at > datetime('now')`
@@ -77,6 +82,9 @@ export const optionalAuth = createMiddleware<HonoEnv>(async (c, next) => {
         ref_code: session.ref_code!,
         referred_by: null,
         is_banned: 0,
+        email_verified: session.email_verified || 0,
+        vip_until: session.vip_until || null,
+        first_withdraw_done: session.first_withdraw_done || 0,
         created_at: '',
         updated_at: '',
       });

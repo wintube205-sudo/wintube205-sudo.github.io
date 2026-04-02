@@ -5,7 +5,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "wrangler pages dev dist",
-    "dev:sandbox": "wrangler pages dev dist --d1=WINTUBE_DB --local --ip 0.0.0.0 --port 3000",
+    "dev:sandbox": "wrangler pages dev dist --d1=DB --local --ip 0.0.0.0 --port 3000",
     "deploy": "npm run build && wrangler pages deploy dist",
     "deploy:prod": "npm run build && wrangler pages deploy dist --project-name wintube",
     "db:migrate:local": "wrangler d1 migrations apply wintube-db --local",

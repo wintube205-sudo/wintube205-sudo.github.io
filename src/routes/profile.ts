@@ -57,7 +57,10 @@ profile.post('/resend-verify', requireAuth, async (c) => {
     return c.json({ error: 'Already verified' }, 400);
   }
 
-  await sendVerifyEmail(db, user.id, fresh.email, fresh.name, c.env.RESEND_API_KEY);
+  const proto = c.req.header('x-forwarded-proto') || 'https';
+  const host = c.req.header('host') || 'wintube.win';
+  const baseUrl = `${proto}://${host}`;
+  await sendVerifyEmail(db, user.id, fresh.email, fresh.name, c.env.RESEND_API_KEY, baseUrl);
   return c.json({ success: true });
 });
 
@@ -104,7 +107,7 @@ profile.post('/vip/request', requireAuth, async (c) => {
 
 // ═══ HELPER: Send Verification Email ═══
 export async function sendVerifyEmail(
-  db: D1Database, userId: number, email: string, name: string, resendKey: string
+  db: D1Database, userId: number, email: string, name: string, resendKey: string, baseUrl?: string
 ) {
   const token = generateToken(32);
   const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
@@ -119,6 +122,10 @@ export async function sendVerifyEmail(
 
   if (!resendKey) return;
 
+  const verifyUrl = baseUrl
+    ? `${baseUrl}/api/auth/verify-email?token=${token}`
+    : `https://wintube.win/api/auth/verify-email?token=${token}`;
+
   await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${resendKey}` },
@@ -129,7 +136,7 @@ export async function sendVerifyEmail(
       html: `
         <h2>Welcome to WinTube, ${name}!</h2>
         <p>Click the link below to verify your email and unlock withdrawals:</p>
-        <p><a href="https://wintube.app/api/auth/verify-email?token=${token}" style="background:#ef4444;color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:bold;">Verify Email</a></p>
+        <p><a href="${verifyUrl}" style="background:#ef4444;color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:bold;">Verify Email</a></p>
         <p>This link expires in 24 hours.</p>
       `,
     }),
